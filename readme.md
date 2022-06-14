@@ -22,5 +22,5 @@
 - Current implementation cannot handle events which require authenticating a user’s identity.
 
 ## Useful Links
-[Event Management Platform article](https://medium.com/t14g/decentralized-event-management-platforms-d1fce0748a26)
-[Door Github](https://github.com/d0or)
+- [Event Management Platform article](https://medium.com/t14g/decentralized-event-management-platforms-d1fce0748a26)
+- [Door Github](https://github.com/d0or)
