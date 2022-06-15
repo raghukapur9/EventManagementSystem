@@ -47,4 +47,4 @@
 
 ## Flow Diagrams
 - Event Creator Flow
-    - ![Host Flow](/images/host_flow.png?raw=true "Host Flow")
+    ![Host Flow](/images/host_flow.png?raw=true "Host Flow")
