@@ -24,3 +24,24 @@
 ## Useful Links
 - [Event Management Platform article](https://medium.com/t14g/decentralized-event-management-platforms-d1fce0748a26)
 - [Door Github](https://github.com/d0or)
+
+## Feature List
+- Event Host
+    - Host can create the event 
+    - Host can cancel the event
+    - Host can put the address where tokens will be transferred
+    - Modify the event details
+    - Burning of remaining tickets are event is over
+    - Event details and analytics in terms of tickets sold, attendees, etc
+    - Dashboard showing the event list hosted by the host
+
+- Retail Users
+    - Users can buy tickets for the event
+    - Dashboard showing the list of upcoming and ended shows
+    - Ticket cancel if allowed by the event
+
+- Retail Trades
+    - Users can resell their tickets in the marketplace
+    - Users can buy tickets from the marketplace
+    - Popover showing the details of the event.
+
