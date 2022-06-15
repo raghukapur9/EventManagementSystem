@@ -45,3 +45,6 @@
     - Users can buy tickets from the marketplace
     - Popover showing the details of the event.
 
+## Flow Diagrams
+- Event Creator Flow
+    - ![Host Flow](/images/host_flow.png?raw=true "Host Flow")
