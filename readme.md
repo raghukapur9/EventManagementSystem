@@ -46,5 +46,8 @@
     - Popover showing the details of the event.
 
 ## Flow Diagrams
-- Event Creator Flow
+- Event Creator Flow (Before event ends)
     ![Host Flow](/images/host_flow.png?raw=true "Host Flow")
+- Retail User Flow 
+    ![Retail User Flow](/images/retail_user_flow.png?raw=true "Retail User Flow")
+    
