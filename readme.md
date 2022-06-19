@@ -3,7 +3,7 @@
 ## Actors
 - Event Host -> Person who will host the event on the website.
 - Retail Users -> People who will buy tickets to these events.
-- Retail Trades -> Users who will trade their event tickets in a secondary marketplace. (These can be Retail users or users looking to buy event tickets when the slots are booked)
+- Retail Trades -> Users who will trade their event tickets in a secondary marketplace. (These can be Retail users or users looking to buy event tickets when the slots are booked.)
 
 ## Scope
 - Event MarketPlace is a decentralized platform that allows event hosts to create an event on the platform with all the necessary details.The contract will generate NFTs for the no. of seats available for the event. The users will use this platform to buy tickets to these events which will be in the form of NFT. These NFTs will be associated with the user address. 
