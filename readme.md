@@ -52,4 +52,8 @@
     ![Retail User Flow](/images/retail_user_flow.png?raw=true "Retail User Flow")
 - Secondary Marketplace for Ticket Reselling Flow
     ![Secondary Marketplace Flow](/images/secondary_marketplace_flow.png?raw=true "Secondary Marketplace Flow")
+
+## Future Enhancements
+- Introduction of Platform generated NFTs that can be used as a priority pass to get discounts on the events.
+- Enabling of bidding process when the user re-sells the ticket.
     
