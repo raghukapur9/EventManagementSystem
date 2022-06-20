@@ -50,4 +50,6 @@
     ![Host Flow](/images/host_flow.png?raw=true "Host Flow")
 - Retail User Flow 
     ![Retail User Flow](/images/retail_user_flow.png?raw=true "Retail User Flow")
+- Secondary Marketplace for Ticket Reselling Flow
+    ![Secondary Marketplace Flow](/images/secondary_marketplace_flow.png?raw=true "Secondary Marketplace Flow")
     
