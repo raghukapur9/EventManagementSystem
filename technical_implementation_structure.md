@@ -25,3 +25,9 @@
 - Details Required for reselling a ticket
     - Host Address
     - NFT Address
+
+## TODO
+- Cancel Event
+- Contract to hold the money until the end
+- In case of cancellation, amound to be blocked to be taken by the host
+- NFT owners can take the amount in case of cancellation
