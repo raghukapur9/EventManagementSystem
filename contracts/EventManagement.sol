@@ -1,11 +1,24 @@
 // SPDX-License-Identifier: Unlicenced
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 pragma solidity ^0.8.4;
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-contract EventManagement is Initializable, Ownable{
+interface TicketNFTInterface {
+    function mintTicketNFT(uint256 _tokenID, address _lender) external;
+
+    function burnTicketNFT(uint256 _tokenID) external;
+
+    function ownerOf(uint256 _tokenID) external returns (address);
+}
+
+contract EventManagement{
+  using SafeERC20Upgradeable for IERC20Upgradeable;
+
+  uint256 public eventId;
+  address public ticketNFT;
+
   struct eventDetails {
+    address eventHost;
     uint256 ticketsNo;
     uint256 eventStartTime;
     address paymentAddress;
@@ -14,9 +27,17 @@ contract EventManagement is Initializable, Ownable{
     uint256 ticketsPerUser;
     string eventName;
     uint256 ticketsUsed;
+    uint256 totalAttendees;
   }
-  // change this to event id to event details, add owner address to struct
-  mapping(address => eventDetails) public eventDetailsBook;
+  mapping(uint256 => eventDetails) public eventDetailsBook;
+  address payable public owner;
+
+    constructor(address _nft){
+      ticketNFT = _nft;
+      owner = payable(msg.sender);
+      eventId = 0;
+    }
+
 
   function createEvent(
       uint256 _ticketNo,
@@ -36,8 +57,11 @@ contract EventManagement is Initializable, Ownable{
       _ticketsPerUser >0 &&
       bytes(_eventName).length != 0, "Incorrect Inputs"
       );
+    
+    eventId +=1;
     // create event details entry in the event details book
-    eventDetailsBook[msg.sender] = eventDetails(
+    eventDetailsBook[eventId] = eventDetails(
+      msg.sender,
       _ticketNo,
       _eventStartTime,
       _paymentAddress,
@@ -45,18 +69,64 @@ contract EventManagement is Initializable, Ownable{
       _eventDuration,
       _ticketsPerUser,
       _eventName,
+      0,
       0
     );
   }
 
-  function createEvent(address _eventAddress) external virtual{
+  function buyEventTicket(uint256 _eventId) external virtual payable{
     // add check for max tickets, need to check if there is direct way to get this
+    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+
     require(
-      _eventAddress != address(0) &&
-      eventDetailsBook[_eventAddress].paymentAddress != address(0) &&
-      eventDetailsBook[_eventAddress].eventStartTime > block.timestamp, "Invalid Input"
+      _eventDetails.eventHost != address(0) &&
+      _eventDetails.eventStartTime > block.timestamp &&
+      _eventDetails.ticketsUsed < _eventDetails.ticketsNo &&
+      msg.value == _eventDetails.price , "Invalid Input"
     );
 
+    _eventDetails.ticketsUsed +=1;
+
+    owner.transfer(_eventDetails.price);
+    (payable(msg.sender)).transfer(_eventDetails.price);
+    // create NFT here
+    uint256 tokenId = uint256(
+    keccak256(
+      abi.encodePacked(
+      _eventId,
+      msg.sender,
+      _eventDetails.ticketsUsed
+      )
+    )
+    );
+    TicketNFTInterface(ticketNFT).mintTicketNFT(
+        tokenId,
+        msg.sender
+    );
+    eventDetailsBook[_eventId] = _eventDetails;
+
+  }
+
+  function markEventAttendance(uint256 _eventId, uint256 _ticketUsed) external virtual payable{
+    uint256 userTokenId = uint256(
+    keccak256(
+      abi.encodePacked(
+      _eventId,
+      msg.sender,
+      _ticketUsed
+      )
+    )
+    );
+    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    require(
+      nftOwner == msg.sender &&
+      block.timestamp >= _eventDetails.eventStartTime &&
+      block.timestamp < (_eventDetails.eventStartTime + _eventDetails.eventDuration), "Only User owning the NFT can mark the attendance"
+    );
+    _eventDetails.totalAttendees +=1;
+    eventDetailsBook[_eventId] = _eventDetails;
+    TicketNFTInterface(ticketNFT).burnTicketNFT(userTokenId);
   }
 
 }
