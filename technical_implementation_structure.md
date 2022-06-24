@@ -31,3 +31,4 @@
 - Contract to hold the money until the end
 - In case of cancellation, amound to be blocked to be taken by the host
 - NFT owners can take the amount in case of cancellation
+- Store ticket info also in a different struct
