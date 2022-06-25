@@ -28,6 +28,7 @@ contract EventManagement{
     string eventName;
     uint256 ticketsUsed;
     uint256 totalAttendees;
+    bool isEventCancelled;
   }
   mapping(uint256 => eventDetails) public eventDetailsBook;
   address payable public owner;
@@ -70,8 +71,19 @@ contract EventManagement{
       _ticketsPerUser,
       _eventName,
       0,
-      0
+      0,
+      false
     );
+  }
+
+  function cancelEvent(uint256 _eventId) external virtual{
+    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    require(
+      msg.sender == _eventDetails.eventHost &&
+      !_eventDetails.isEventCancelled, "only host can cancel the event or event is already cancelled"
+      );
+    _eventDetails.isEventCancelled = !(_eventDetails.isEventCancelled);
+    eventDetailsBook[_eventId] = _eventDetails;
   }
 
   function buyEventTicket(uint256 _eventId) external virtual payable{
@@ -82,13 +94,14 @@ contract EventManagement{
       _eventDetails.eventHost != address(0) &&
       _eventDetails.eventStartTime > block.timestamp &&
       _eventDetails.ticketsUsed < _eventDetails.ticketsNo &&
-      msg.value == _eventDetails.price , "Invalid Input"
+      msg.value == _eventDetails.price &&
+      !(eventDetailsBook[_eventId].isEventCancelled), "Invalid Input"
     );
 
     _eventDetails.ticketsUsed +=1;
 
     owner.transfer(_eventDetails.price);
-    (payable(msg.sender)).transfer(_eventDetails.price);
+    // (payable(msg.sender)).transfer(_eventDetails.price);
     // create NFT here
     uint256 tokenId = uint256(
     keccak256(
@@ -122,7 +135,8 @@ contract EventManagement{
     require(
       nftOwner == msg.sender &&
       block.timestamp >= _eventDetails.eventStartTime &&
-      block.timestamp < (_eventDetails.eventStartTime + _eventDetails.eventDuration), "Only User owning the NFT can mark the attendance"
+      block.timestamp < (_eventDetails.eventStartTime + _eventDetails.eventDuration) &&
+      !(_eventDetails.isEventCancelled), "Only User owning the NFT can mark the attendance"
     );
     _eventDetails.totalAttendees +=1;
     eventDetailsBook[_eventId] = _eventDetails;
