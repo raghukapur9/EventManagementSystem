@@ -121,7 +121,7 @@ contract EventManagement{
     for (uint256 i=0; i<_noOfTickets; i++){
       // create NFT here
       _eventDetails.ticketsUsed += 1;
-      (address _, uint256 tokenId) = getNftDetails(
+      (address nftOwner, uint256 tokenId) = getNftDetails(
         _eventId,
         _eventDetails.eventHost,
         _eventDetails.ticketsUsed
