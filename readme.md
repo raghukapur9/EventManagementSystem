@@ -31,7 +31,6 @@
     - Host can cancel the event
     - Host can put the address where tokens will be transferred
     - Modify the event details
-    - Burning of remaining tickets are event is over
     - Event details and analytics in terms of tickets sold, attendees, etc
     - Dashboard showing the event list hosted by the host
 
@@ -39,11 +38,13 @@
     - Users can buy tickets for the event
     - Dashboard showing the list of upcoming and ended shows
     - Ticket cancel if allowed by the event
+    - Redeeming ticket price if event is cancelled by the host
 
 - Retail Trades
     - Users can resell their tickets in the marketplace
+    - Cancel the order placed by the user in the marketplace
     - Users can buy tickets from the marketplace
-    - Popover showing the details of the event.
+    - Popover showing the details of the event
 
 ## Flow Diagrams
 - Event Creator Flow (Before event ends)
