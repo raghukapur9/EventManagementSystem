@@ -121,14 +121,10 @@ contract EventManagement{
     for (uint256 i=0; i<_noOfTickets; i++){
       // create NFT here
       _eventDetails.ticketsUsed += 1;
-      uint256 tokenId = uint256(
-      keccak256(
-        abi.encodePacked(
+      (address _, uint256 tokenId) = getNftDetails(
         _eventId,
         _eventDetails.eventHost,
         _eventDetails.ticketsUsed
-        )
-      )
       );
       TicketNFTInterface(ticketNFT).mintTicketNFT(
           tokenId,
@@ -141,16 +137,11 @@ contract EventManagement{
 
   function markEventAttendance(uint256 _eventId, uint256 _ticketId) external virtual{
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
-    uint256 userTokenId = uint256(
-    keccak256(
-      abi.encodePacked(
+    (address nftOwner, uint256 userTokenId) = getNftDetails(
       _eventId,
       _eventDetails.eventHost,
       _ticketId
-      )
-    )
     );
-    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
     require(
       nftOwner == msg.sender &&
       block.timestamp >= _eventDetails.eventStartTime &&
@@ -182,16 +173,11 @@ contract EventManagement{
       _eventDetails.isEventCancelled, "Only cancelled events can be redeemed."
     );
     for (uint256 i=0;i<_ticketIds.length;i++){
-      uint256 userTokenId = uint256(
-        keccak256(
-          abi.encodePacked(
-          _eventId,
-          _eventDetails.eventHost,
-          _ticketIds[i]
-          )
-        )
+      (address nftOwner, uint256 userTokenId) = getNftDetails(
+        _eventId,
+        _eventDetails.eventHost,
+        _ticketIds[i]
       );
-      address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
       require(
         nftOwner == msg.sender, "Only ticket owner can ask for refund."
       );
@@ -203,16 +189,11 @@ contract EventManagement{
 
   function resellTicket(uint256 _eventId, uint256 _ticketId, uint256 _price) external virtual payable {
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
-    uint256 userTokenId = uint256(
-        keccak256(
-          abi.encodePacked(
-          _eventId,
-          _eventDetails.eventHost,
-          _ticketId
-          )
-        )
-      );
-    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+    (address nftOwner, uint256 userTokenId) = getNftDetails(
+      _eventId,
+      _eventDetails.eventHost,
+      _ticketId
+    );
 
     require(
       _eventDetails.eventHost != address(0) &&
@@ -242,16 +223,11 @@ contract EventManagement{
     );
     _tradeDetails.isOrderCancelled = true;
     eventDetails memory _eventDetails = eventDetailsBook[_tradeDetails.eventId];
-    uint256 userTokenId = uint256(
-        keccak256(
-          abi.encodePacked(
-          _tradeDetails.eventId,
-          _eventDetails.eventHost,
-          _tradeDetails.ticketId
-          )
-        )
-      );
-    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+    (address nftOwner, uint256 userTokenId) = getNftDetails(
+      _tradeDetails.eventId,
+      _eventDetails.eventHost,
+      _tradeDetails.ticketId
+    );
     require(
       nftOwner == owner, "Nft should belong to the Contract owner"
     );
@@ -262,16 +238,12 @@ contract EventManagement{
   function buyResellTicket(uint256 _tradeId) external virtual payable{
     tradeDetails memory _tradeDetails = tradeDetailsBook[_tradeId];
     eventDetails memory _eventDetails = eventDetailsBook[_tradeDetails.eventId];
-    uint256 userTokenId = uint256(
-        keccak256(
-          abi.encodePacked(
-          _tradeDetails.eventId,
-          _eventDetails.eventHost,
-          _tradeDetails.ticketId
-          )
-        )
-      );
-    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+    (address nftOwner, uint256 userTokenId) = getNftDetails(
+      _tradeDetails.eventId,
+      _eventDetails.eventHost,
+      _tradeDetails.ticketId
+    );
+
     require(
       _tradeDetails.orderCreator != address(0) &&
       nftOwner == owner && 
@@ -280,10 +252,25 @@ contract EventManagement{
       !(_tradeDetails.orderFulfilled) &&
       _eventDetails.eventStartTime > block.timestamp, "Order should be in active state and the ticketing event should not have started."
     );
+
     TicketNFTInterface(ticketNFT).transferFrom(owner, msg.sender, userTokenId);
     owner.transfer(_tradeDetails.price);
     (payable(msg.sender)).transfer(_tradeDetails.price);
     _tradeDetails.orderFulfilled = true;
     tradeDetailsBook[_tradeId] = _tradeDetails;
   }
+
+  function getNftDetails(uint256 _eventId, address _eventHost, uint256 _ticketId) internal returns (address, uint256){
+      uint256 userTokenId = uint256(
+        keccak256(
+          abi.encodePacked(
+          _eventId,
+          _eventHost,
+          _ticketId
+          )
+        )
+      );
+    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+    return (nftOwner, userTokenId);
+    }
 }
