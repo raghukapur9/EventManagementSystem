@@ -258,4 +258,32 @@ contract EventManagement{
     TicketNFTInterface(ticketNFT).transferFrom(owner, msg.sender, userTokenId);
     tradeDetailsBook[_tradeId] = _tradeDetails;
   }
+
+  function buyResellTicket(uint256 _tradeId) external virtual payable{
+    tradeDetails memory _tradeDetails = tradeDetailsBook[_tradeId];
+    eventDetails memory _eventDetails = eventDetailsBook[_tradeDetails.eventId];
+    uint256 userTokenId = uint256(
+        keccak256(
+          abi.encodePacked(
+          _tradeDetails.eventId,
+          _eventDetails.eventHost,
+          _tradeDetails.ticketId
+          )
+        )
+      );
+    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+    require(
+      _tradeDetails.orderCreator != address(0) &&
+      nftOwner == owner && 
+      _tradeDetails.orderCreator != msg.sender &&
+      !(_tradeDetails.isOrderCancelled) &&
+      !(_tradeDetails.orderFulfilled) &&
+      _eventDetails.eventStartTime > block.timestamp, "Order should be in active state and the ticketing event should not have started."
+    );
+    TicketNFTInterface(ticketNFT).transferFrom(owner, msg.sender, userTokenId);
+    owner.transfer(_tradeDetails.price);
+    (payable(msg.sender)).transfer(_tradeDetails.price);
+    _tradeDetails.orderFulfilled = true;
+    tradeDetailsBook[_tradeId] = _tradeDetails;
+  }
 }
