@@ -29,6 +29,7 @@ contract EventManagement{
     uint256 ticketsUsed;
     uint256 totalAttendees;
     bool isEventCancelled;
+    bool isPaymentComplete;
   }
   mapping(uint256 => eventDetails) public eventDetailsBook;
   address payable public owner;
@@ -38,7 +39,6 @@ contract EventManagement{
       owner = payable(msg.sender);
       eventId = 0;
     }
-
 
   function createEvent(
       uint256 _ticketNo,
@@ -72,6 +72,7 @@ contract EventManagement{
       _eventName,
       0,
       0,
+      false,
       false
     );
   }
@@ -80,13 +81,14 @@ contract EventManagement{
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
     require(
       msg.sender == _eventDetails.eventHost &&
-      !_eventDetails.isEventCancelled, "only host can cancel the event or event is already cancelled"
+      !_eventDetails.isEventCancelled &&
+      _eventDetails.eventStartTime > block.timestamp, "only host can cancel the event before the event start or event is already cancelled"
       );
     _eventDetails.isEventCancelled = !(_eventDetails.isEventCancelled);
     eventDetailsBook[_eventId] = _eventDetails;
   }
 
-  function buyEventTicket(uint256 _eventId) external virtual payable{
+  function buyEventTicket(uint256 _eventId, uint256 _noOfTickets) external virtual payable{
     // add check for max tickets, need to check if there is direct way to get this
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
 
@@ -95,43 +97,45 @@ contract EventManagement{
       _eventDetails.eventStartTime > block.timestamp &&
       _eventDetails.ticketsUsed < _eventDetails.ticketsNo &&
       msg.value == _eventDetails.price &&
-      !(eventDetailsBook[_eventId].isEventCancelled), "Invalid Input"
+      _noOfTickets > 0 &&
+      (_eventDetails.ticketsUsed + _noOfTickets) <= _eventDetails.ticketsNo &&
+      !(_eventDetails.isEventCancelled), "Invalid Input"
     );
 
-    _eventDetails.ticketsUsed +=1;
-
-    owner.transfer(_eventDetails.price);
-    // (payable(msg.sender)).transfer(_eventDetails.price);
-    // create NFT here
-    uint256 tokenId = uint256(
-    keccak256(
-      abi.encodePacked(
-      _eventId,
-      msg.sender,
-      _eventDetails.ticketsUsed
+    owner.transfer(_eventDetails.price*_noOfTickets);
+    for (uint256 i=0; i<_noOfTickets; i++){
+      // create NFT here
+      _eventDetails.ticketsUsed += 1;
+      uint256 tokenId = uint256(
+      keccak256(
+        abi.encodePacked(
+        _eventId,
+        _eventDetails.eventHost,
+        _eventDetails.ticketsUsed
+        )
       )
-    )
-    );
-    TicketNFTInterface(ticketNFT).mintTicketNFT(
-        tokenId,
-        msg.sender
-    );
+      );
+      TicketNFTInterface(ticketNFT).mintTicketNFT(
+          tokenId,
+          msg.sender
+      );
+    }
     eventDetailsBook[_eventId] = _eventDetails;
 
   }
 
-  function markEventAttendance(uint256 _eventId, uint256 _ticketUsed) external virtual payable{
+  function markEventAttendance(uint256 _eventId, uint256 _ticketId) external virtual{
+    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
     uint256 userTokenId = uint256(
     keccak256(
       abi.encodePacked(
       _eventId,
-      msg.sender,
-      _ticketUsed
+      _eventDetails.eventHost,
+      _ticketId
       )
     )
     );
     address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
-    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
     require(
       nftOwner == msg.sender &&
       block.timestamp >= _eventDetails.eventStartTime &&
@@ -143,4 +147,42 @@ contract EventManagement{
     TicketNFTInterface(ticketNFT).burnTicketNFT(userTokenId);
   }
 
+  function getEventEarnings(uint256 _eventId) external virtual{
+    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    require(
+      msg.sender == _eventDetails.eventHost &&
+      block.timestamp > (_eventDetails.eventStartTime + _eventDetails.eventDuration) &&
+      !(_eventDetails.isEventCancelled) &&
+      !(_eventDetails.isPaymentComplete), "Only Owner can take the earning after the event is over"
+    );
+    uint256 total_earnings = _eventDetails.ticketsUsed*_eventDetails.price;
+    (payable(msg.sender)).transfer(total_earnings);
+    _eventDetails.isPaymentComplete = true;
+    eventDetailsBook[_eventId] = _eventDetails;
+  }
+
+  function redeemCancelledEventTicket(uint256 _eventId, uint256[] calldata _ticketIds) external virtual payable{
+    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    require(
+      _eventDetails.isEventCancelled, "Only cancelled events can be redeemed."
+    );
+    for (uint256 i=0;i<_ticketIds.length;i++){
+      uint256 userTokenId = uint256(
+        keccak256(
+          abi.encodePacked(
+          _eventId,
+          _eventDetails.eventHost,
+          _ticketIds[i]
+          )
+        )
+      );
+      address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+      require(
+        nftOwner == msg.sender, "Only ticket owner can ask for refund."
+      );
+      TicketNFTInterface(ticketNFT).burnTicketNFT(userTokenId);
+    }
+    uint256 total_earnings = _ticketIds.length*_eventDetails.price;
+    (payable(msg.sender)).transfer(total_earnings);
+  }
 }
