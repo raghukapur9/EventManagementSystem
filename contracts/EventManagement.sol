@@ -9,12 +9,15 @@ interface TicketNFTInterface {
     function burnTicketNFT(uint256 _tokenID) external;
 
     function ownerOf(uint256 _tokenID) external returns (address);
+
+    function transferFrom( address from, address to, uint256 tokenId) external;
 }
 
 contract EventManagement{
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
   uint256 public eventId;
+  uint256 public tradeId;
   address public ticketNFT;
 
   struct eventDetails {
@@ -31,13 +34,25 @@ contract EventManagement{
     bool isEventCancelled;
     bool isPaymentComplete;
   }
+
+  struct tradeDetails {
+    address orderCreator;
+    uint256 eventId;
+    uint256 ticketId;
+    uint256 price;
+    bool orderFulfilled;
+    bool isOrderCancelled;
+  }
   mapping(uint256 => eventDetails) public eventDetailsBook;
+  mapping(uint256 => tradeDetails) public tradeDetailsBook;
+
   address payable public owner;
 
     constructor(address _nft){
       ticketNFT = _nft;
       owner = payable(msg.sender);
       eventId = 0;
+      tradeId = 0;
     }
 
   function createEvent(
@@ -184,5 +199,63 @@ contract EventManagement{
     }
     uint256 total_earnings = _ticketIds.length*_eventDetails.price;
     (payable(msg.sender)).transfer(total_earnings);
+  }
+
+  function resellTicket(uint256 _eventId, uint256 _ticketId, uint256 _price) external virtual payable {
+    eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    uint256 userTokenId = uint256(
+        keccak256(
+          abi.encodePacked(
+          _eventId,
+          _eventDetails.eventHost,
+          _ticketId
+          )
+        )
+      );
+    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+
+    require(
+      _eventDetails.eventHost != address(0) &&
+      _eventDetails.eventStartTime > block.timestamp &&
+      nftOwner == msg.sender &&
+      _price>0 , "Invalid Input"
+    );
+    tradeId += 1;
+    tradeDetailsBook[tradeId] = tradeDetails(
+      msg.sender,
+      _eventId,
+      _ticketId,
+      _price,
+      false,
+      false
+    );
+    TicketNFTInterface(ticketNFT).transferFrom(msg.sender, owner, userTokenId);
+  }
+
+  function cancelresellTicketOrder(uint256 _tradeId) external virtual{
+    tradeDetails memory _tradeDetails = tradeDetailsBook[_tradeId];
+    require(
+      _tradeDetails.orderCreator != address(0) &&
+      _tradeDetails.orderCreator == msg.sender &&
+      !(_tradeDetails.isOrderCancelled) &&
+      !(_tradeDetails.orderFulfilled), "Order can only be cancelled by the order creator or order is cancelled or fulfilled"
+    );
+    _tradeDetails.isOrderCancelled = true;
+    eventDetails memory _eventDetails = eventDetailsBook[_tradeDetails.eventId];
+    uint256 userTokenId = uint256(
+        keccak256(
+          abi.encodePacked(
+          _tradeDetails.eventId,
+          _eventDetails.eventHost,
+          _tradeDetails.ticketId
+          )
+        )
+      );
+    address nftOwner = TicketNFTInterface(ticketNFT).ownerOf(userTokenId);
+    require(
+      nftOwner == owner, "Nft should belong to the Contract owner"
+    );
+    TicketNFTInterface(ticketNFT).transferFrom(owner, msg.sender, userTokenId);
+    tradeDetailsBook[_tradeId] = _tradeDetails;
   }
 }
