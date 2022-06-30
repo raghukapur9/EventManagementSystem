@@ -29,3 +29,6 @@
 ## TODO
 - Store ticket info also in a different struct
 - Graph Implementation
+- Slot based ticketing system
+- clone contract for NFT
+- starting time for ticket reselling
