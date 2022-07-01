@@ -35,6 +35,34 @@ contract EventManagement{
     bool isPaymentComplete;
   }
 
+  //   struct eventDetails {
+  //   address eventHost;
+  //   uint256 eventStartTime;
+  //   address paymentAddress;
+  //   uint256 eventDuration;
+  //   uint256 ticketsPerUser;
+  //   string eventName;
+  //   uint256 ticketsUsed;
+  //   uint256 totalAttendees;
+  //   bool isEventCancelled;
+  //   bool isPaymentComplete;
+  //   uint256 resellStartTime;
+  // }
+
+  //   struct ticketSchedule {
+  //   uint256 ticketsNo;
+  //   uint256 scheduleStartTime;
+  //   uint256 scheduleStartTime;
+  //   uint256 price;
+  // }
+  //   mapping(uint256 => arr[ticketSchedule]) public eventDetailScheduleMapping;
+  //   struct ticketSchedule {
+  //   uint256 ticketsNo;
+  //   uint256 scheduleStartTime;
+  //   uint256 scheduleStartTime;
+  //   uint256 price;
+  // }
+
   struct tradeDetails {
     address orderCreator;
     uint256 eventId;
