@@ -27,7 +27,6 @@ contract EventManagement{
     uint256 eventDuration;
     uint256 ticketsPerUser;
     string eventName;
-    uint256 ticketsUsed;
     uint256 totalAttendees;
     bool isEventCancelled;
     bool isPaymentComplete;
@@ -40,6 +39,7 @@ contract EventManagement{
     uint256 scheduleStartTime;
     uint256 scheduleEndTime;
     uint256 price;
+    uint256 ticketsUsed;
   }
 
   struct tradeDetails {
@@ -52,7 +52,7 @@ contract EventManagement{
   }
   mapping(uint256 => eventDetails) public eventDetailsBook;
   mapping(uint256 => tradeDetails) public tradeDetailsBook;
-  mapping(uint256 => ticketSchedule[]) public tradeScheduleBook;
+  mapping(uint256 => ticketSchedule[]) public ticketScheduleBook;
 
   address payable public owner;
 
@@ -105,13 +105,14 @@ contract EventManagement{
       if(i>0){
         require(_ticketSellingStartTime[i] >= _ticketSellingEndTime[i-1], "Next round for ticket selling should sell after the previous round is over");
       }
-      tradeScheduleBook[eventId].push(
+      ticketScheduleBook[eventId].push(
         ticketSchedule(
           _noOfTickets[i],
           _ticketScheduleNames[i],
           _ticketSellingStartTime[i],
           _ticketSellingEndTime[i],
-          _price[i]
+          _price[i],
+          0
         )
       );
     }
@@ -124,7 +125,6 @@ contract EventManagement{
       _eventDuration,
       _ticketsPerUser,
       _eventName,
-      0,
       0,
       false,
       false,
@@ -144,36 +144,65 @@ contract EventManagement{
   }
 
   function buyEventTicket(uint256 _eventId, uint256 _noOfTickets) external virtual payable{
+    // RECHECK FUNCTION LOGIC
     // add check for max tickets, need to check if there is direct way to get this
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    ticketSchedule[] memory _ticketSchedule = ticketScheduleBook[_eventId];
 
     require(
       _eventDetails.eventHost != address(0) &&
       _eventDetails.eventStartTime > block.timestamp &&
-      _eventDetails.ticketsUsed < _eventDetails.ticketsNo &&
-      msg.value == _eventDetails.price &&
-      _noOfTickets > 0 &&
-      (_eventDetails.ticketsUsed + _noOfTickets) <= _eventDetails.ticketsNo &&
-      !(_eventDetails.isEventCancelled), "Invalid Input"
+      !(_eventDetails.isEventCancelled) &&
+      _ticketSchedule[0].scheduleStartTime > block.timestamp, "Invalid Input"
     );
-
-    owner.transfer(_eventDetails.price*_noOfTickets);
-    for (uint256 i=0; i<_noOfTickets; i++){
-      // create NFT here
-      _eventDetails.ticketsUsed += 1;
-      // need to break this func into 2
-      (address nftOwner, uint256 tokenId) = getNftDetails(
-        _eventId,
-        _eventDetails.eventHost,
-        _eventDetails.ticketsUsed
-      );
-      TicketNFTInterface(ticketNFT).mintTicketNFT(
-          tokenId,
-          msg.sender
-      );
+    bool suitableTicket = false;
+    uint256 ticketLeft = 0;
+    for(uint256 i=0; i< _ticketSchedule.length; i++){
+      if (_ticketSchedule[i].scheduleStartTime < block.timestamp && _ticketSchedule[i].scheduleEndTime > block.timestamp ){
+        if(_ticketSchedule[i].ticketsNo >= _ticketSchedule[i].ticketsUsed + _noOfTickets){
+          suitableTicket = true;
+          for (uint256 j=0; j<_noOfTickets; j++){
+            // create NFT here
+            _ticketSchedule[i].ticketsUsed += 1;
+            // need to break this func into 2
+            (address nftOwner, uint256 tokenId) = getNftDetails(
+              _eventId,
+              _eventDetails.eventHost,
+              _ticketSchedule[i].ticketsUsed
+            );
+            TicketNFTInterface(ticketNFT).mintTicketNFT(
+                tokenId,
+                msg.sender
+            );
+          }
+          owner.transfer(_ticketSchedule[i].price*_noOfTickets);
+          ticketScheduleBook[_eventId][i] = _ticketSchedule[i];
+        }
+      } else {
+        ticketLeft +=_ticketSchedule[i].ticketsNo -  _ticketSchedule[i].ticketsUsed;
+      }
     }
-    eventDetailsBook[_eventId] = _eventDetails;
-
+    if(!suitableTicket){
+      require(ticketLeft >= _noOfTickets &&
+      block.timestamp >_eventDetails.eventStartTime, "Not enough tickets are available or event has started");
+      uint256 scheduleLength = ticketScheduleBook[_eventId].length;
+      for (uint256 j=0; j<_noOfTickets; j++){
+        // create NFT here
+        _ticketSchedule[scheduleLength-1].ticketsUsed += 1;
+        // need to break this func into 2
+        (address nftOwner, uint256 tokenId) = getNftDetails(
+          _eventId,
+          _eventDetails.eventHost,
+          _ticketSchedule[scheduleLength-1].ticketsUsed
+        );
+        TicketNFTInterface(ticketNFT).mintTicketNFT(
+            tokenId,
+            msg.sender
+        );
+      }
+      owner.transfer(_ticketSchedule[scheduleLength-1].price*_noOfTickets);
+      ticketScheduleBook[_eventId][scheduleLength-1] = _ticketSchedule[scheduleLength-1];
+    }
   }
 
   function markEventAttendance(uint256 _eventId, uint256 _ticketId) external virtual{
@@ -196,19 +225,24 @@ contract EventManagement{
 
   function getEventEarnings(uint256 _eventId) external virtual{
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    ticketSchedule[] memory _ticketSchedule = ticketScheduleBook[_eventId];
     require(
       msg.sender == _eventDetails.eventHost &&
       block.timestamp > (_eventDetails.eventStartTime + _eventDetails.eventDuration) &&
       !(_eventDetails.isEventCancelled) &&
       !(_eventDetails.isPaymentComplete), "Only Owner can take the earning after the event is over"
     );
-    uint256 total_earnings = _eventDetails.ticketsUsed*_eventDetails.price;
-    (payable(msg.sender)).transfer(total_earnings);
+    uint256 ticketsPrice = 0;
+    for(uint256 i=0; i < _ticketSchedule.length; i++){
+      ticketsPrice+=_ticketSchedule[i].ticketsUsed*_ticketSchedule[i].price;
+    }
+    (payable(msg.sender)).transfer(ticketsPrice);
     _eventDetails.isPaymentComplete = true;
     eventDetailsBook[_eventId] = _eventDetails;
   }
 
   function redeemCancelledEventTicket(uint256 _eventId, uint256[] calldata _ticketIds) external virtual payable{
+    // NEED TO ADJUST TICKET TIME ALSO IN THE NFT ID
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
     require(
       _eventDetails.isEventCancelled, "Only cancelled events can be redeemed."
