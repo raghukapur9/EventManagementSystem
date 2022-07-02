@@ -22,10 +22,8 @@ contract EventManagement{
 
   struct eventDetails {
     address eventHost;
-    uint256 ticketsNo;
     uint256 eventStartTime;
     address paymentAddress;
-    uint256 price;
     uint256 eventDuration;
     uint256 ticketsPerUser;
     string eventName;
@@ -33,35 +31,16 @@ contract EventManagement{
     uint256 totalAttendees;
     bool isEventCancelled;
     bool isPaymentComplete;
+    uint256 resellStartTime;
   }
 
-  //   struct eventDetails {
-  //   address eventHost;
-  //   uint256 eventStartTime;
-  //   address paymentAddress;
-  //   uint256 eventDuration;
-  //   uint256 ticketsPerUser;
-  //   string eventName;
-  //   uint256 ticketsUsed;
-  //   uint256 totalAttendees;
-  //   bool isEventCancelled;
-  //   bool isPaymentComplete;
-  //   uint256 resellStartTime;
-  // }
-
-  //   struct ticketSchedule {
-  //   uint256 ticketsNo;
-  //   uint256 scheduleStartTime;
-  //   uint256 scheduleStartTime;
-  //   uint256 price;
-  // }
-  //   mapping(uint256 => arr[ticketSchedule]) public eventDetailScheduleMapping;
-  //   struct ticketSchedule {
-  //   uint256 ticketsNo;
-  //   uint256 scheduleStartTime;
-  //   uint256 scheduleStartTime;
-  //   uint256 price;
-  // }
+  struct ticketSchedule {
+    uint256 ticketsNo;
+    string ticketScheduleName;
+    uint256 scheduleStartTime;
+    uint256 scheduleEndTime;
+    uint256 price;
+  }
 
   struct tradeDetails {
     address orderCreator;
@@ -73,6 +52,7 @@ contract EventManagement{
   }
   mapping(uint256 => eventDetails) public eventDetailsBook;
   mapping(uint256 => tradeDetails) public tradeDetailsBook;
+  mapping(uint256 => ticketSchedule[]) public tradeScheduleBook;
 
   address payable public owner;
 
@@ -84,39 +64,71 @@ contract EventManagement{
     }
 
   function createEvent(
-      uint256 _ticketNo,
       uint256 _eventStartTime,
       address _paymentAddress,
-      uint256 _price,
       uint256 _eventDuration,
       uint256 _ticketsPerUser,
-      string memory _eventName
+      string memory _eventName,
+      uint256 _resellStartTime,
+      string[] memory _ticketScheduleNames,
+      uint256[] memory _noOfTickets,
+      uint256[] memory _ticketSellingStartTime,
+      uint256[] memory _ticketSellingEndTime,
+      uint256[] memory _price
   ) external virtual{
 
     require(
-      _ticketNo>0 &&
       _eventStartTime>block.timestamp &&
       _paymentAddress != address(0) &&
       _eventDuration >0 &&
       _ticketsPerUser >0 &&
       bytes(_eventName).length != 0, "Incorrect Inputs"
       );
-    
+    // Require to handle the ticket selling schedule
+    require(
+      _noOfTickets.length != 0 &&
+      _ticketScheduleNames.length == _noOfTickets.length &&
+      _noOfTickets.length == _ticketSellingStartTime.length &&
+      _noOfTickets.length == _ticketSellingEndTime.length &&
+      _noOfTickets.length == _price.length, "Incorrect Inputs"
+      );
     eventId +=1;
+    for(uint256 i=0; i< _noOfTickets.length; i++){
+      require(
+        _noOfTickets[i] > 0 &&
+        _price[i] > 0 &&
+        _ticketSellingEndTime[i] > _ticketSellingStartTime[i] &&
+        _ticketSellingStartTime[i] > block.timestamp &&
+        _ticketSellingEndTime[i] <= _eventStartTime &&
+        bytes(_ticketScheduleNames[i]).length != 0, "Invalid Input for setting ticket selling schedule"
+      );
+      if(i>0){
+        require(_ticketSellingStartTime[i] >= _ticketSellingEndTime[i-1], "Next round for ticket selling should sell after the previous round is over");
+      }
+      tradeScheduleBook[eventId].push(
+        ticketSchedule(
+          _noOfTickets[i],
+          _ticketScheduleNames[i],
+          _ticketSellingStartTime[i],
+          _ticketSellingEndTime[i],
+          _price[i]
+        )
+      );
+    }
+
     // create event details entry in the event details book
     eventDetailsBook[eventId] = eventDetails(
       msg.sender,
-      _ticketNo,
       _eventStartTime,
       _paymentAddress,
-      _price,
       _eventDuration,
       _ticketsPerUser,
       _eventName,
       0,
       0,
       false,
-      false
+      false,
+      _resellStartTime
     );
   }
 
