@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: Unlicenced
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-
+import "../node_modules/@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "../node_modules/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 pragma solidity ^0.8.4;
 
-contract TicketNFT is ERC721Upgradeable {
+contract TicketNFT is  Initializable ,OwnableUpgradeable, ERC721Upgradeable{
     address public controller;
-    address public owner;
 
-    constructor(){
-        owner = msg.sender;
+    function initialize(string memory _name) public initializer {
+        __Ownable_init();
+        __ERC721_init(_name, _name);
     }
 
     function setController(address _controller) public {
-        require((msg.sender == owner), "Only owner can set controller");
+        require((msg.sender == owner()), "Only owner can set controller");
         controller = _controller;
     }
 
