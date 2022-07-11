@@ -43,6 +43,67 @@ contract EventManagement{
     address nftContractAddress;
   }
 
+  event CreateEventId(
+    uint256 eventId,
+    address eventHost,
+    uint256 eventStartTime,
+    address paymentAddress,
+    uint256 eventDuration,
+    uint256 ticketsPerUser,
+    string eventName,
+    uint256 totalAttendees,
+    uint256 ticketsSold,
+    bool isEventCancelled,
+    bool isPaymentComplete,
+    uint256 resellStartTime,
+    address nftContractAddress
+    );
+  
+  event CancelEvent(
+    uint256 eventId
+  );
+
+  event BuyTicket(
+    address user,
+    uint256 eventId,
+    uint256 totalPrice,
+    uint256 totalTickets
+  );
+
+  event MarkAttendance(
+    address user,
+    uint256 eventId,
+    uint256 ticketId
+  );
+
+  event getEarnings(
+    uint256 eventId,
+    uint256 totalEarnings
+  );
+
+  event getTicketRefund(
+    uint256 eventId,
+    address user,
+    uint256 ticketId,
+    uint256 price
+  );
+
+  event resellTicket(
+    address user,
+    uint256 eventId,
+    uint256 orderId,
+    uint256 ticketId,
+    uint256 price
+  );
+
+  event cancelTicket(
+    uint256 orderId
+  );
+
+  event buyResellTicket(
+    address user,
+    uint256 orderId
+  );
   struct ticketSchedule {
     uint256 ticketsNo;
     string ticketScheduleName;
