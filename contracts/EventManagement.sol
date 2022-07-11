@@ -88,7 +88,7 @@ contract EventManagement{
     uint256 price
   );
 
-  event resellTicket(
+  event resellEventTicket(
     address user,
     uint256 eventId,
     uint256 orderId,
@@ -100,7 +100,7 @@ contract EventManagement{
     uint256 orderId
   );
 
-  event buyResellTicket(
+  event buyResellEventTicket(
     address user,
     uint256 orderId
   );
