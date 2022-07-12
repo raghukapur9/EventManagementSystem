@@ -1,7 +1,7 @@
 const { default: BigNumber } = require("bignumber.js");
 const { assert } = require("console");
 const { report } = require("process");
-
+const helper = require('../utils');
 const eventManagement = artifacts.require("EventManagement");
 const nftContract = artifacts.require("TicketNFT");
 
@@ -18,6 +18,7 @@ contract('Testing EventManagementSystem', (accounts) => {
     var ticketNames = ["early bird", "normal"];
     var ticketNos = ["2", "5"];
     var ticketsPrice = ["100000000000000000", "200000000000000000"];
+
     it('Deployed EventManagement', async() => {
         nftContractInstance = await nftContract.deployed();
         eventManagementInstance = await eventManagement.deployed();
@@ -267,5 +268,72 @@ contract('Testing EventManagementSystem', (accounts) => {
                 response.ticketsUsed.toString(10) === "0"
             );
         });
+    });
+
+    it('Cancel Event: User other than host deleting the event', async() => {
+        try{
+            await eventManagementInstance.cancelEvent(
+                eventId,
+                {
+                    from: accounts[1]
+                }
+            );
+        } catch (error){
+            await assert(error.message.includes("only host can cancel the event before the event start or event is already cancelled"))
+        }
+    });
+
+    it('Cancel Event: User cancelling the event after start time', async() => {
+        advancement = 86400*2 // 100 days
+        await helper.advanceTime(advancement);
+        try{
+            await eventManagementInstance.cancelEvent(
+                eventId,
+                {
+                    from: accounts[0]
+                }
+            );
+        } catch (error){
+            await assert(error.message.includes("only host can cancel the event before the event start or event is already cancelled"))
+        }
+    });
+
+    it('Cancel Event: User cancelling the event', async() => {
+        eventId +=1;
+        // Create new event
+        eventStartTime = "1657984976";
+        ticketResellTime = "1657974976";
+        await eventManagementInstance.createEvent(
+            eventStartTime,
+            accounts[0],
+            eventDuration,
+            ticketsPerUser,
+            eventName,
+            ticketResellTime,
+            ticketNames,
+            ticketNos,
+            ticketsPrice
+        );
+        await eventManagementInstance.cancelEvent(
+            eventId
+        );
+        await eventManagementInstance.eventDetailsBook(eventId).then((response)=>{
+            assert(
+                response.isEventCancelled === true
+            )
+        });
+    });
+
+    it('Cancel Event: User cancelling the event', async() => {
+        try{
+            await eventManagementInstance.cancelEvent(
+                eventId,
+                {
+                    from: accounts[0]
+                }
+            );
+        } catch (error){
+            await assert(error.message.includes("only host can cancel the event before the event start or event is already cancelled"))
+        }
     });
 });
