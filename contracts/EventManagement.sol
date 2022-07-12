@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 abstract contract NFTContract {
-  function initializer (
+  function initialize (
       string memory name_
   ) public virtual;
 }
@@ -148,9 +148,11 @@ contract EventManagement{
     require(
       _eventStartTime>block.timestamp &&
       _paymentAddress != address(0) &&
-      _eventDuration >0 &&
-      _ticketsPerUser >0 &&
-      bytes(_eventName).length != 0, "Incorrect Inputs"
+      _eventDuration > 0 &&
+      _ticketsPerUser > 0 &&
+      bytes(_eventName).length != 0 &&
+      _resellStartTime > block.timestamp &&
+      _resellStartTime < _eventStartTime, "Incorrect Inputs"
       );
     // Require to handle the ticket selling schedule
     require(
@@ -163,9 +165,7 @@ contract EventManagement{
 
     address deployedNFT = create(ticketNFT);
     assert(deployedNFT != address(0));
-    NFTContract(deployedNFT).initializer(
-      _eventName
-    );
+    NFTContract(deployedNFT).initialize(_eventName);
 
     for(uint256 i=0; i< _noOfTickets.length; i++){
       require(

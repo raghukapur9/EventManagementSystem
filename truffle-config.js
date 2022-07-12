@@ -18,10 +18,11 @@
  *
  */
 
-// const HDWalletProvider = require('@truffle/hdwallet-provider');
-//
-// const fs = require('fs');
-// const mnemonic = fs.readFileSync(".secret").toString().trim();
+ const HDWalletProvider = require('@truffle/hdwallet-provider');
+ // const infuraKey = "fj4jll3k.....";
+ //
+ // const fs = require('fs');
+ const mnemonic = require("./secrets.json").mnemonic;
 
 module.exports = {
   /**
@@ -76,12 +77,16 @@ module.exports = {
   // Set default mocha options here, use special reporters etc.
   mocha: {
     // timeout: 100000
-  },
+    reporter: 'eth-gas-reporter',
+    reporterOptions : { 
+        
+     }
+},
 
   // Configure your compilers
   compilers: {
     solc: {
-      version: "0.8.4",    // Fetch exact version from solc-bin (default: truffle's version)
+      version: "0.8.4",      // Fetch exact version from solc-bin (default: truffle's version)
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
       // settings: {          // See the solidity docs for advice about optimization and evmVersion
       //  optimizer: {
@@ -113,5 +118,5 @@ module.exports = {
     //   }
     // }
   // }
-  plugins: ["truffle-contract-size"]
+  plugins: ["solidity-coverage","truffle-contract-size"]
 };

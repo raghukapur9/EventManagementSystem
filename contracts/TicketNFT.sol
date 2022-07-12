@@ -3,10 +3,13 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 
 contract TicketNFT is  Initializable ,OwnableUpgradeable, ERC721Upgradeable{
     address public controller;
+    bool initialized;
 
     function initialize(string memory _name) public initializer {
         __Ownable_init();
