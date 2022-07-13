@@ -1,5 +1,6 @@
 const { default: BigNumber } = require("bignumber.js");
 const { assert } = require("console");
+const { check } = require("prettier");
 const { report } = require("process");
 const helper = require('../utils');
 const eventManagement = artifacts.require("EventManagement");
@@ -372,6 +373,17 @@ contract('Testing EventManagementSystem', (accounts) => {
         }
     });
 
+    it('Fail: User redeem Ticket: User trying to redeem the ticket value for a non-cancelled event', async() => {
+        try{
+            await eventManagementInstance.redeemCancelledEventTicket(
+                eventId,
+                ["1","2"]
+            );
+        } catch(error){
+            await assert(error.message.includes("Only cancelled events can be redeemed."))
+        }
+    });
+
     it('Cancel Event: User cancelling the event', async() => {
         eventId +=1;
         // Create new event
@@ -388,6 +400,15 @@ contract('Testing EventManagementSystem', (accounts) => {
             ticketNos,
             ticketsPrice
         );
+
+        // buy ticket
+        await eventManagementInstance.buyEventTicket(
+            eventId,
+            2,
+            {from: accounts[1], value: "200000000000000000"}
+        );
+
+        // cancel event
         await eventManagementInstance.cancelEvent(
             eventId
         );
@@ -398,7 +419,7 @@ contract('Testing EventManagementSystem', (accounts) => {
         });
     });
 
-    it('Cancel Event: User cancelling the event', async() => {
+    it('Fail: Cancel Event: User cancelling the cancelled event', async() => {
         try{
             await eventManagementInstance.cancelEvent(
                 eventId,
@@ -420,6 +441,45 @@ contract('Testing EventManagementSystem', (accounts) => {
             );
         } catch(error){
             await assert(error.message.includes("Invalid Input"))
+        }
+    });
+
+    it('Fail: User redeem Ticket: User other than ticket holder trying to redeem the ticket value', async() => {
+        try{
+            await eventManagementInstance.redeemCancelledEventTicket(
+                eventId,
+                ["1","2"],{
+                    from: accounts[0]
+                }
+            );
+        } catch(error){
+            await assert(error.message.includes("Only ticket owner can ask for refund."))
+        }
+    });
+
+    it('User redeem Ticket: Ticket holder trying to redeem the ticket value', async() => {
+        balance = await eventManagementInstance.contractBalance();
+
+        await eventManagementInstance.redeemCancelledEventTicket(
+            eventId,
+            ["1","2"],{
+                from: accounts[1]
+            }
+        );
+        balance_after = await eventManagementInstance.contractBalance();
+        console.log(balance.toString(10));
+        console.log(balance_after.toString(10));
+        assert((parseInt(balance.toString(10) - parseInt(balance_after.toString(10)))).toString(10) === "200000000000000000");
+
+        try{
+            await eventManagementInstance.redeemCancelledEventTicket(
+                eventId,
+                ["1","2"],{
+                    from: accounts[1]
+                }
+            );
+        } catch(error){
+            await assert(error.message.includes("ERC721: owner query for nonexistent token"))
         }
     });
 });

@@ -21,9 +21,9 @@ contract TicketNFT is  Initializable ,OwnableUpgradeable, ERC721Upgradeable{
         controller = _controller;
     }
 
-    function mintTicketNFT(uint256 _tokenID, address _lender) public {
+    function mintTicketNFT(uint256 _tokenID, address _ticketOwner) public {
         require(msg.sender == controller, "Controller can only mint");
-        _mint(_lender, _tokenID);
+        _mint(_ticketOwner, _tokenID);
     }
 
     function burnTicketNFT(uint256 _tokenID) public {

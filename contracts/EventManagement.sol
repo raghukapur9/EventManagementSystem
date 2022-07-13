@@ -130,12 +130,12 @@ contract EventManagement{
 
   address payable public owner;
 
-    constructor(address _nft){
-      ticketNFT = _nft;
-      owner = payable(msg.sender);
-      eventId = 0;
-      tradeId = 0;
-    }
+  constructor(address _nft){
+    ticketNFT = _nft;
+    owner = payable(msg.sender);
+    eventId = 0;
+    tradeId = 0;
+  }
 
   function createEvent(
       uint256 _eventStartTime,
@@ -268,7 +268,6 @@ contract EventManagement{
       );
     }
     require(msg.value >= totalPrice, "Tickets require more funds");
-    owner.transfer(totalPrice);
     eventDetailsBook[_eventId] = _eventDetails;
   }
 
@@ -304,10 +303,11 @@ contract EventManagement{
     eventDetailsBook[_eventId] = _eventDetails;
   }
 
-  function redeemCancelledEventTicket(uint256 _eventId, uint256[] calldata _ticketIds) external virtual payable{
+  function redeemCancelledEventTicket(uint256 _eventId, uint256[] calldata _ticketIds) external virtual {
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
     ticketSchedule[] memory _ticketSchedule = ticketScheduleBook[_eventId];
     uint256 totalRefundPrice = 0;
+    uint256 totalTickets = 0;
     require(
       _eventDetails.isEventCancelled, "Only cancelled events can be redeemed."
     );
@@ -317,13 +317,16 @@ contract EventManagement{
         nftOwner == msg.sender, "Only ticket owner can ask for refund."
       );
       for(uint256 j=0; j<_ticketSchedule.length; j++){
-        if(_ticketSchedule[j].ticketsNo >= _ticketIds[i]){
+        totalTickets+=_ticketSchedule[j].ticketsNo;
+        if(totalTickets >= _ticketIds[i]){
           totalRefundPrice+=_ticketSchedule[j].price;
+          break;
         }
       }
-      TicketNFTInterface(ticketNFT).burnTicketNFT(_ticketIds[i]);
+      TicketNFTInterface(_eventDetails.nftContractAddress).burnTicketNFT(_ticketIds[i]);
     }
-    (payable(msg.sender)).transfer(totalRefundPrice);
+    address payable receiver = payable(msg.sender);
+    receiver.transfer(totalRefundPrice);
   }
 
   function resellTicket(uint256 _eventId, uint256 _ticketId, uint256 _price) external virtual payable {
@@ -347,7 +350,7 @@ contract EventManagement{
       false,
       false
     );
-    TicketNFTInterface(_eventDetails.nftContractAddress).transferFrom(msg.sender, owner, _ticketId);
+    TicketNFTInterface(_eventDetails.nftContractAddress).transferFrom(msg.sender, address(this), _ticketId);
   }
 
   function cancelresellTicketOrder(uint256 _tradeId) external virtual{
@@ -359,10 +362,10 @@ contract EventManagement{
       _tradeDetails.orderCreator == msg.sender &&
       !(_tradeDetails.isOrderCancelled) &&
       !(_tradeDetails.orderFulfilled) &&
-      nftOwner == owner , "Order can only be cancelled by the order creator or order is cancelled or fulfilled"
+      nftOwner == address(this) , "Order can only be cancelled by the order creator or order is cancelled or fulfilled"
     );
     _tradeDetails.isOrderCancelled = true;
-    TicketNFTInterface(_eventDetails.nftContractAddress).transferFrom(owner, msg.sender, _tradeDetails.ticketId);
+    TicketNFTInterface(_eventDetails.nftContractAddress).transferFrom(address(this), msg.sender, _tradeDetails.ticketId);
     tradeDetailsBook[_tradeId] = _tradeDetails;
   }
 
@@ -373,7 +376,7 @@ contract EventManagement{
 
     require(
       _tradeDetails.orderCreator != address(0) &&
-      nftOwner == owner && 
+      nftOwner == address(this) && 
       _tradeDetails.orderCreator != msg.sender &&
       !(_tradeDetails.isOrderCancelled) &&
       !(_tradeDetails.orderFulfilled) &&
@@ -381,8 +384,8 @@ contract EventManagement{
       block.timestamp >= _eventDetails.resellStartTime, "Order should be in active state and the ticketing event should not have started."
     );
 
-    TicketNFTInterface(_eventDetails.nftContractAddress).transferFrom(owner, msg.sender, _tradeDetails.ticketId);
-    owner.transfer(_tradeDetails.price);
+    TicketNFTInterface(_eventDetails.nftContractAddress).transferFrom(address(this), msg.sender, _tradeDetails.ticketId);
+    payable(address(this)).transfer(_tradeDetails.price);
     (payable(msg.sender)).transfer(_tradeDetails.price);
     _tradeDetails.orderFulfilled = true;
     tradeDetailsBook[_tradeId] = _tradeDetails;
@@ -404,5 +407,9 @@ contract EventManagement{
           )
           result := create(0, clone, 0x37)
       }
+  }
+
+  function contractBalance() public view returns(uint256) {
+    return address(this).balance;
   }
 }
