@@ -7,6 +7,10 @@ abstract contract NFTContract {
   function initialize (
       string memory name_
   ) public virtual;
+
+  function setController (
+      address  controller_
+  ) public virtual;
 }
 
 interface TicketNFTInterface {
@@ -166,6 +170,7 @@ contract EventManagement{
     address deployedNFT = create(ticketNFT);
     assert(deployedNFT != address(0));
     NFTContract(deployedNFT).initialize(_eventName);
+    NFTContract(deployedNFT).setController(address(this) );
 
     for(uint256 i=0; i< _noOfTickets.length; i++){
       require(
@@ -220,13 +225,13 @@ contract EventManagement{
     require(
       _eventDetails.eventHost != address(0) &&
       _eventDetails.eventStartTime > block.timestamp &&
-      !(_eventDetails.isEventCancelled) &&
-      _eventDetails.eventStartTime > block.timestamp, "Invalid Input"
+      !(_eventDetails.isEventCancelled), "Invalid Input"
     );
 
-    uint256 ticketOwnedByUser = TicketNFTInterface(ticketNFT).balanceOf(
+    uint256 ticketOwnedByUser = TicketNFTInterface(_eventDetails.nftContractAddress).balanceOf(
       msg.sender
     );
+
     uint256 totalTickets = 0;
     for(uint256 i=0; i< _ticketSchedule.length; i++){
       totalTickets += _ticketSchedule[i].ticketsNo;
@@ -243,12 +248,16 @@ contract EventManagement{
           if(ticketsLeft > ticketsPending){
             totalPrice = ticketsPending*_ticketSchedule[i].price;
             ticketsPending = 0;
-            break;
+            _ticketSchedule[i].ticketsUsed += ticketsPending;
           } else {
             totalPrice = ticketsLeft*_ticketSchedule[i].price;
             ticketsPending = ticketsPending - ticketsLeft;
+            _ticketSchedule[i].ticketsUsed += ticketsLeft;
           }
           ticketScheduleBook[eventId][i] = _ticketSchedule[i];
+          if(ticketsPending == 0){
+            break;
+          }
       }
     }
     for(uint256 i=0; i< _noOfTickets; i++){
@@ -258,6 +267,7 @@ contract EventManagement{
           msg.sender
       );
     }
+    require(msg.value >= totalPrice, "Tickets require more funds");
     owner.transfer(totalPrice);
     eventDetailsBook[_eventId] = _eventDetails;
   }

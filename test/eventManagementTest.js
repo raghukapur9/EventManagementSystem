@@ -10,11 +10,11 @@ contract('Testing EventManagementSystem', (accounts) => {
     var eventManagementInstance;
     var eventId = 0;
 
-    var eventStartTime = "1657725776";
+    var eventStartTime = "1657862240";
     var eventDuration = "3600";
     var ticketsPerUser = "3";
     var eventName = "NFT Event";
-    var ticketResellTime = "1657639376";
+    var ticketResellTime = "1657775840";
     var ticketNames = ["early bird", "normal"];
     var ticketNos = ["2", "5"];
     var ticketsPrice = ["100000000000000000", "200000000000000000"];
@@ -270,6 +270,68 @@ contract('Testing EventManagementSystem', (accounts) => {
         });
     });
 
+    it('Fail:Buy Event Ticket: Buying ticket for non existant event', async() => {
+        try{
+            await eventManagementInstance.buyEventTicket(
+                100,
+                2,
+                {from: accounts[1], value: "100"}
+            );
+        } catch(error){
+            await assert(error.message.includes("Invalid Input"))
+        }
+    });
+
+    it('Fail:Buy Event Ticket: Buying more tickets than available', async() => {
+        try{
+            await eventManagementInstance.buyEventTicket(
+                eventId,
+                10,
+                {from: accounts[1], value: "100"}
+            );
+        } catch(error){
+            await assert(error.message.includes("ticket limit exceed by the user"))
+        }
+    });
+
+    it('Fail:Buy Event Ticket: Sending less value than required', async() => {
+        try{
+            await eventManagementInstance.buyEventTicket(
+                eventId,
+                2,
+                {from: accounts[1], value: "20000000000000000"}
+            );
+        } catch(error){
+            await assert(error.message.includes("Tickets require more funds"))
+        }
+    });
+
+    it('Buy Event Ticket', async() => {
+        await eventManagementInstance.buyEventTicket(
+            eventId,
+            2,
+            {from: accounts[1], value: "200000000000000000"}
+        );
+
+        await eventManagementInstance.ticketScheduleBook(eventId,0).then((response)=>{
+            assert(
+                response.ticketsUsed.toString(10) === "2"
+            );
+        });
+    });
+
+    it('Fail: Buy Event Ticket: Limit exceeded for per user tickts', async() => {
+        try{
+            await eventManagementInstance.buyEventTicket(
+                eventId,
+                2,
+                {from: accounts[1], value: "400000000000000000"}
+            );
+        } catch(error){
+            await assert(error.message.includes("ticket limit exceed by the user"))
+        }
+    });
+
     it('Cancel Event: User other than host deleting the event', async() => {
         try{
             await eventManagementInstance.cancelEvent(
@@ -295,6 +357,18 @@ contract('Testing EventManagementSystem', (accounts) => {
             );
         } catch (error){
             await assert(error.message.includes("only host can cancel the event before the event start or event is already cancelled"))
+        }
+    });
+
+    it('Fail: Buy Event Ticket: buy tickets after start time of the event', async() => {
+        try{
+            await eventManagementInstance.buyEventTicket(
+                eventId,
+                2,
+                {from: accounts[1], value: "400000000000000000"}
+            );
+        } catch(error){
+            await assert(error.message.includes("Invalid Input"))
         }
     });
 
@@ -334,6 +408,18 @@ contract('Testing EventManagementSystem', (accounts) => {
             );
         } catch (error){
             await assert(error.message.includes("only host can cancel the event before the event start or event is already cancelled"))
+        }
+    });
+
+    it('Fail: Buy Event Ticket: buy tickets after event is cancelled', async() => {
+        try{
+            await eventManagementInstance.buyEventTicket(
+                eventId,
+                2,
+                {from: accounts[1], value: "400000000000000000"}
+            );
+        } catch(error){
+            await assert(error.message.includes("Invalid Input"))
         }
     });
 });
