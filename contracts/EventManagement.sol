@@ -278,7 +278,7 @@ contract EventManagement{
       nftOwner == msg.sender &&
       block.timestamp >= _eventDetails.eventStartTime &&
       block.timestamp < (_eventDetails.eventStartTime + _eventDetails.eventDuration) &&
-      !(_eventDetails.isEventCancelled), "Only User owning the NFT can mark the attendance"
+      !(_eventDetails.isEventCancelled), "Only User owning the NFT can mark the attendance during the event"
     );
     _eventDetails.totalAttendees +=1;
     eventDetailsBook[_eventId] = _eventDetails;
@@ -331,14 +331,16 @@ contract EventManagement{
 
   function resellTicket(uint256 _eventId, uint256 _ticketId, uint256 _price) external virtual payable {
     eventDetails memory _eventDetails = eventDetailsBook[_eventId];
+    require(
+      _eventDetails.eventHost != address(0), "non-existant event"
+    );
     address nftOwner = TicketNFTInterface(_eventDetails.nftContractAddress).ownerOf(_ticketId);
 
     require(
-      _eventDetails.eventHost != address(0) &&
       _eventDetails.eventStartTime > block.timestamp &&
       nftOwner == msg.sender &&
       _price>0 &&
-      block.timestamp >= _eventDetails.resellStartTime &&
+      // block.timestamp >= _eventDetails.resellStartTime &&
       !(_eventDetails.isEventCancelled), "Invalid Input"
     );
     tradeId += 1;
@@ -350,7 +352,7 @@ contract EventManagement{
       false,
       false
     );
-    TicketNFTInterface(_eventDetails.nftContractAddress).transferFrom(msg.sender, address(this), _ticketId);
+    TicketNFTInterface(_eventDetails.nftContractAddress)._transfer(msg.sender, address(this), _ticketId);
   }
 
   function cancelresellTicketOrder(uint256 _tradeId) external virtual{

@@ -13,6 +13,7 @@ contract('Testing EventManagementSystem', (accounts) => {
 
     var eventStartTime = "1657862240";
     var eventDuration = "3600";
+    let tradeId = 0;
     var ticketsPerUser = "3";
     var eventName = "NFT Event";
     var ticketResellTime = "1657775840";
@@ -321,6 +322,75 @@ contract('Testing EventManagementSystem', (accounts) => {
         });
     });
 
+    it('Fail:Resell Event Ticket', async() => {
+        // ticket resell by non owner
+        try{
+            await eventManagementInstance.resellTicket(
+                eventId,
+                2,
+                "1000000000",
+                {from: accounts[0]}
+            );
+        } catch(error){
+            await assert(error.message.includes("Invalid Input"))
+        }
+        // non existant event
+        try{
+            await eventManagementInstance.resellTicket(
+                100,
+                2,
+                "1000000000",
+                {from: accounts[1]}
+            );
+        } catch(error){
+            await assert(error.message.includes("non-existant event"))
+        }
+
+        // non ticket owner
+        try{
+            await eventManagementInstance.resellTicket(
+                eventId,
+                5,
+                "1000000000",
+                {from: accounts[1]}
+            );
+        } catch(error){
+            await assert(error.message.includes("ERC721: owner query for nonexistent token"))
+        }
+
+        // price is 0
+        try{
+            await eventManagementInstance.resellTicket(
+                eventId,
+                1,
+                "0",
+                {from: accounts[1]}
+            );
+        } catch(error){
+            await assert(error.message.includes("Invalid Input"))
+        }
+    });
+
+    // it('Resell Event Ticket', async() => {
+    //     tradeId +=1;
+    //     await eventManagementInstance.resellTicket(
+    //         eventId,
+    //         "1",
+    //         "1000000000",
+    //         {from: accounts[1]}
+    //     );
+
+    //     await eventManagementInstance.tradeDetailsBook(tradeId).then((response)=>{
+    //         assert(
+    //             response.orderCreator.toString(10) === accounts[1].toString(10),
+    //             response.eventId.toString(10) === eventId.toString(10),
+    //             response.price.toString(10) === "1000000000",
+    //             response.orderFulfilled === false,
+    //             response.isOrderCancelled === false
+    //         );
+    //     });
+    // });
+
     it('Fail: Buy Event Ticket: Limit exceeded for per user tickts', async() => {
         try{
             await eventManagementInstance.buyEventTicket(
@@ -467,8 +537,6 @@ contract('Testing EventManagementSystem', (accounts) => {
             }
         );
         balance_after = await eventManagementInstance.contractBalance();
-        console.log(balance.toString(10));
-        console.log(balance_after.toString(10));
         assert((parseInt(balance.toString(10) - parseInt(balance_after.toString(10)))).toString(10) === "200000000000000000");
 
         try{
@@ -480,6 +548,107 @@ contract('Testing EventManagementSystem', (accounts) => {
             );
         } catch(error){
             await assert(error.message.includes("ERC721: owner query for nonexistent token"))
+        }
+    });
+
+    it('Fail: Redeem Event Money: User redeeming money before event end time', async() => {
+        eventId +=1;
+        // Create new event
+        eventStartTime = "1657984976";
+        ticketResellTime = "1657974976";
+        await eventManagementInstance.createEvent(
+            eventStartTime,
+            accounts[0],
+            eventDuration,
+            ticketsPerUser,
+            eventName,
+            ticketResellTime,
+            ticketNames,
+            ticketNos,
+            ticketsPrice
+        );
+
+        // buy ticket
+        await eventManagementInstance.buyEventTicket(
+            eventId,
+            2,
+            {from: accounts[1], value: "200000000000000000"}
+        );
+
+        try{
+            await eventManagementInstance.getEventEarnings(
+                eventId,{
+                    from: accounts[0]
+                }
+            );
+        } catch(error){
+            await assert(error.message.includes("Only Owner can take the earning after the event is over"))
+        }
+        
+    });
+
+    it('Fail: Redeem Event Money: User other than host redeeming money before event end time', async() => {
+        try{
+            await eventManagementInstance.getEventEarnings(
+                eventId,{
+                    from: accounts[1]
+                }
+            );
+        } catch(error){
+            await assert(error.message.includes("Only Owner can take the earning after the event is over"))
+        }
+    });
+
+    it('Redeem Event Money', async() => {
+        balance = await eventManagementInstance.contractBalance();
+        advancement = 86400*6 // 100 days
+        await helper.advanceTime(advancement);
+
+        await eventManagementInstance.getEventEarnings(
+            eventId,{
+                from: accounts[0]
+            }
+        );
+        after_balance = await eventManagementInstance.contractBalance();
+        assert((parseInt(balance.toString(10) - parseInt(balance_after.toString(10)))).toString(10) === "200000000000000000");
+    });
+
+    it('Fail: Redeem Event Money: User again redeeming money', async() => {
+        try{
+            await eventManagementInstance.getEventEarnings(
+                eventId,{
+                    from: accounts[0]
+                }
+            );
+        } catch(error){
+            await assert(error.message.includes("Only Owner can take the earning after the event is over"))
+        }
+    });
+
+    it('Fail: Mark Attendance: User marking attendance after event', async() => {
+        try{
+            await eventManagementInstance.markEventAttendance(
+                eventId,
+                "1",{
+                    from: accounts[1]
+                }
+            );
+        } catch(error){
+            await assert(error.message.includes("Only User owning the NFT can mark the attendance during the event"))
+        }
+    });
+
+    it('Fail: Resell Ticket: Selling ticket after event starts', async() => {
+        try{
+            await eventManagementInstance.resellTicket(
+                eventId,
+                "1",
+                "100000000000",{
+                    from: accounts[1]
+                }
+            );
+        } catch(error){
+            await assert(error.message.includes("Invalid Input"))
         }
     });
 });
