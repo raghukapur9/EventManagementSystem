@@ -11,12 +11,12 @@ contract('Testing EventManagementSystem', (accounts) => {
     var eventManagementInstance;
     var eventId = 0;
 
-    var eventStartTime = "1657862240";
+    var eventStartTime = "172800";
     var eventDuration = "3600";
     let tradeId = 0;
     var ticketsPerUser = "3";
     var eventName = "NFT Event";
-    var ticketResellTime = "1657775840";
+    var ticketResellTime = "86400";
     var ticketNames = ["early bird", "normal"];
     var ticketNos = ["2", "5"];
     var ticketsPrice = ["100000000000000000", "200000000000000000"];
@@ -32,7 +32,7 @@ contract('Testing EventManagementSystem', (accounts) => {
         // Create new event
         try{
             await eventManagementInstance.createEvent(
-                "100",
+                "0",
                 accounts[0],
                 eventDuration,
                 ticketsPerUser,
@@ -242,7 +242,6 @@ contract('Testing EventManagementSystem', (accounts) => {
         await eventManagementInstance.eventDetailsBook(eventId).then((response)=>{
             assert(
                 response.eventHost.toString(10) === (accounts[0]).toString(10) &&
-                response.eventStartTime.toString(10) === eventStartTime &&
                 response.paymentAddress.toString(10) ===  (accounts[0]).toString(10) &&
                 response.eventDuration.toString(10)=== eventDuration &&
                 response.ticketsPerUser.toString(10) === ticketsPerUser &&
@@ -250,8 +249,7 @@ contract('Testing EventManagementSystem', (accounts) => {
                 response.totalAttendees.toString(10) === "0" &&
                 response.ticketsSold.toString(10) === "0" &&
                 response.isEventCancelled === false &&
-                response.isPaymentComplete === false &&
-                response.resellStartTime.toString(10) === ticketResellTime
+                response.isPaymentComplete === false
             );
         });
         await eventManagementInstance.ticketScheduleBook(eventId,0).then((response)=>{
@@ -301,7 +299,7 @@ contract('Testing EventManagementSystem', (accounts) => {
             await eventManagementInstance.buyEventTicket(
                 eventId,
                 2,
-                {from: accounts[1], value: "20000000000000000"}
+                {from: accounts[1], value: "10000000000000000"}
             );
         } catch(error){
             await assert(error.message.includes("Tickets require more funds"))
@@ -323,6 +321,8 @@ contract('Testing EventManagementSystem', (accounts) => {
     });
 
     it('Fail:Resell Event Ticket', async() => {
+        advancement = 86400*1 //  days
+        await helper.advanceTime(advancement);
         // ticket resell by non owner
         try{
             await eventManagementInstance.resellTicket(
@@ -355,7 +355,7 @@ contract('Testing EventManagementSystem', (accounts) => {
                 {from: accounts[1]}
             );
         } catch(error){
-            await assert(error.message.includes("ERC721: owner query for nonexistent token"))
+            await assert(error.message.includes("ERC721: invalid token ID"))
         }
 
         // price is 0
@@ -371,25 +371,160 @@ contract('Testing EventManagementSystem', (accounts) => {
         }
     });
 
-    // it('Resell Event Ticket', async() => {
-    //     tradeId +=1;
-    //     await eventManagementInstance.resellTicket(
-    //         eventId,
-    //         "1",
-    //         "1000000000",
-    //         {from: accounts[1]}
-    //     );
+    it('Resell Event Ticket', async() => {
+        tradeId +=1;
+        let nftContractEvent;
+        await eventManagementInstance.eventDetailsBook(eventId).then((response)=>{
+            nftContractEvent = response.nftContractAddress;
+        });
+        nftInstance = await nftContract.at(nftContractEvent);
+        const txResult = await nftInstance.approve(eventManagementInstance.address, "1", {from: accounts[1]});
+        await eventManagementInstance.resellTicket(
+            eventId,
+            "1",
+            "1000000000",
+            {from: accounts[1]}
+        );
 
-    //     await eventManagementInstance.tradeDetailsBook(tradeId).then((response)=>{
-    //         assert(
-    //             response.orderCreator.toString(10) === accounts[1].toString(10),
-    //             response.eventId.toString(10) === eventId.toString(10),
-    //             response.price.toString(10) === "1000000000",
-    //             response.orderFulfilled === false,
-    //             response.isOrderCancelled === false
-    //         );
-    //     });
-    // });
+        await eventManagementInstance.tradeDetailsBook(tradeId).then((response)=>{
+            assert(
+                response.orderCreator.toString(10) === accounts[1].toString(10),
+                response.eventId.toString(10) === eventId.toString(10),
+                response.price.toString(10) === "1000000000",
+                response.orderFulfilled === false,
+                response.isOrderCancelled === false
+            );
+        });
+    });
+
+    it('Fail: Buy Resell Event Ticket: order id does not exist', async() => {
+        try{
+            await eventManagementInstance.buyResellTicket(
+                "2",
+                {from: accounts[1], value: "200000000000000000"}
+            )
+        } catch(error){
+            await assert(error.message.includes("trade does not exist"))
+        };
+    });
+
+    it('Fail: Buy Resell Event Ticket: Order initiator cannot buy the ticket', async() => {
+        try{
+            await eventManagementInstance.buyResellTicket(
+                "1",
+                {from: accounts[1], value: "200000000000000000"}
+            )
+        } catch(error){
+            await assert(error.message.includes("Order should be in active state and the ticketing event should not have started."))
+        };
+    });
+
+    it('Buy Resell Event Ticket', async() => {
+        balance_init1 = await web3.eth.getBalance(accounts[0])
+        balance_init2 = await web3.eth.getBalance(accounts[1])
+        await eventManagementInstance.buyResellTicket(
+            "1",
+            {from: accounts[0], value: "1000000000"}
+        );
+        let nftContractEvent;
+        await eventManagementInstance.eventDetailsBook(eventId).then((response)=>{
+            nftContractEvent = response.nftContractAddress;
+        });
+
+        nftInstance = await nftContract.at(nftContractEvent);
+        const ownerAddress = await nftInstance.ownerOf("1");
+        assert(ownerAddress.toString(10) === accounts[0].toString(10))
+
+    });
+
+    it('Fail: Buy Resell Event Ticket: Ticket already bought', async() => {
+        try{
+            await eventManagementInstance.buyResellTicket(
+                "1",
+                {from: accounts[0], value: "1000000000"}
+            );
+        } catch(error){
+            assert(error.message.includes("Order should be in active state and the ticketing event should not have started."))
+        }
+    });
+
+    it('Fail: Pull Resell Event Ticket Money: Someone else pulling the money', async() => {
+        try{
+            await eventManagementInstance.pullResellTicketAmount(
+                "1",
+                {from: accounts[0]}
+            );
+        } catch(error){
+            assert(error.message.includes("trade does not exist"))
+        }
+    });
+
+    it('Fail: Pull Resell Event Ticket Money: Order Id does not exist', async() => {
+        try{
+            await eventManagementInstance.pullResellTicketAmount(
+                "3",
+                {from: accounts[0]}
+            );
+        } catch(error){
+            assert(error.message.includes("trade does not exist"))
+        }
+    });
+
+    it('Pull Resell Event Ticket Money:', async() => {
+        await eventManagementInstance.pullResellTicketAmount(
+            "1",
+            {from: accounts[1]}
+        );
+        await eventManagementInstance.tradeDetailsBook("1").then((response)=>{
+            assert(response.pricePulled === true);
+        });
+        
+    });
+
+    it('Fail:Cancel Resell Event', async() => {
+        try{
+            await eventManagementInstance.cancelresellTicketOrder(
+                "2",
+                {from: accounts[2]}
+            )
+        } catch(error){
+            await assert(error.message.includes("order not created"))
+        };
+    });
+
+    it('Fail:Cancel Resell Event', async() => {
+        try{
+            await eventManagementInstance.cancelresellTicketOrder(
+                "1",
+                {from: accounts[1]}
+            )
+        } catch(error){
+            await assert(error.message.includes("Order can only be cancelled by the order creator or order is cancelled or fulfilled"))
+        };
+    });
+
+    it('Cancel Resell Event', async() => {
+        let nftContractEvent;
+        await eventManagementInstance.eventDetailsBook(eventId).then((response)=>{
+            nftContractEvent = response.nftContractAddress;
+        });
+        nftInstance = await nftContract.at(nftContractEvent);
+        const txResult = await nftInstance.approve(eventManagementInstance.address, "2", {from: accounts[1]});
+        await eventManagementInstance.resellTicket(
+            eventId,
+            "2",
+            "1000000000",
+            {from: accounts[1]}
+        );
+        await eventManagementInstance.cancelresellTicketOrder(
+            "2",
+            {from: accounts[1]}
+        )
+        await eventManagementInstance.tradeDetailsBook("2").then((response)=>{
+            assert(response.isOrderCancelled === true);
+        });
+        
+    });
 
     it('Fail: Buy Event Ticket: Limit exceeded for per user tickts', async() => {
         try{
@@ -401,6 +536,33 @@ contract('Testing EventManagementSystem', (accounts) => {
         } catch(error){
             await assert(error.message.includes("ticket limit exceed by the user"))
         }
+    });
+
+    it('Mark Event Attendance', async() => {
+        advancement = 86400*1 //  days
+        await helper.advanceTime(advancement);
+        let nftContractEvent;
+        let attendees = 0;
+        let attendeesAfter = 0
+        await eventManagementInstance.eventDetailsBook(eventId).then((response)=>{
+            nftContractEvent = response.nftContractAddress;
+            attendees = response.totalAttendees;
+        });
+        nftInstance = await nftContract.at(nftContractEvent);
+        nftBalanceInit = await nftInstance.balanceOf(accounts[1])
+        const txResult = await nftInstance.approve(eventManagementInstance.address, "2", {from: accounts[1]});
+        await eventManagementInstance.markEventAttendance(
+            eventId,
+            "2",
+            {from: accounts[1]}
+        );
+        await eventManagementInstance.eventDetailsBook(eventId).then((response)=>{
+            attendeesAfter = response.totalAttendees;
+        });
+        nftBalance = await nftInstance.balanceOf(accounts[1]);
+        assert((parseInt(nftBalanceInit.toString(10)) - parseInt(nftBalance.toString(10))).toString(10) === "1");
+        assert((parseInt(attendeesAfter.toString(10)) - parseInt(attendees.toString(10))).toString(10) === "1");
+        
     });
 
     it('Cancel Event: User other than host deleting the event', async() => {
@@ -417,7 +579,7 @@ contract('Testing EventManagementSystem', (accounts) => {
     });
 
     it('Cancel Event: User cancelling the event after start time', async() => {
-        advancement = 86400*2 // 100 days
+        advancement = 86400*2 // 2 days
         await helper.advanceTime(advancement);
         try{
             await eventManagementInstance.cancelEvent(
@@ -457,8 +619,8 @@ contract('Testing EventManagementSystem', (accounts) => {
     it('Cancel Event: User cancelling the event', async() => {
         eventId +=1;
         // Create new event
-        eventStartTime = "1657984976";
-        ticketResellTime = "1657974976";
+        eventStartTime = "172800";
+        ticketResellTime = "86400";
         await eventManagementInstance.createEvent(
             eventStartTime,
             accounts[0],
@@ -489,7 +651,7 @@ contract('Testing EventManagementSystem', (accounts) => {
         });
     });
 
-    it('Fail: Cancel Event: User cancelling the cancelled event', async() => {
+    it('Fail: Cancel Event: Owner cancelling the cancelled event', async() => {
         try{
             await eventManagementInstance.cancelEvent(
                 eventId,
@@ -547,15 +709,15 @@ contract('Testing EventManagementSystem', (accounts) => {
                 }
             );
         } catch(error){
-            await assert(error.message.includes("ERC721: owner query for nonexistent token"))
+            await assert(error.message.includes("ERC721: invalid token ID"))
         }
     });
 
     it('Fail: Redeem Event Money: User redeeming money before event end time', async() => {
         eventId +=1;
         // Create new event
-        eventStartTime = "1657984976";
-        ticketResellTime = "1657974976";
+        eventStartTime = "172800";
+        ticketResellTime = "86400";
         await eventManagementInstance.createEvent(
             eventStartTime,
             accounts[0],
